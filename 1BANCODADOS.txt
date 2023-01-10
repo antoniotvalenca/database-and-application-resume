@@ -1,0 +1,61 @@
+CONTEXTUALIZAÇÃO
+
+-> Banco de dados armazenam dados de uma aplicação após sua criação:
+    -> cadastros de usuários, informações categoricamente criadas, etc
+-> Esses bancos de dados são organizados em tabelas e colunas
+
+                [ID]  [NOME]  [PREÇO]  [COR]
+                12   Bicicl.  R$40    vermelho
+                13   Carro    R$80    preto
+                14   Moto     R$60    prateado
+
+-> Já no ponto de vista da programação, os dados são organizados/armazenados em classes, objetos etc
+                _________________
+                |ID: 12         |
+                |NOME: BICICLETA|
+                |PREÇO: 40      |
+                |COR: VERMELHA  |
+                -----------------
+
+-> Essa diferença de representação de dados do banco vs. do código causa diferenças importantes:
+    -> representação de dados e do modelo, já que são estruturas distintas
+    -> mapeamento entre os tipos de dados da linguagem de programação e do banco de dados
+
+-> Pensando nessa problemática, o ORM (object-relational mapping, mapeamento objeto-relacional) define uma técnica para conciliar os dois modelos no formato de linguagem javascript
+-> O primeiro conceito chave é traçar o paralelo entre CLASSE VS. TABELA, PROPRIEDADE VS. COLUNA
+
+        [TABELA: PRODUTO] -->> ORM <<-- [PRODUTO OBJETO]
+
+-> O ORM utilizado no node é o Sequelize
+
+EM RESUMO:
+
+Você tem o banco de dados, você tem os seus objetos da sua aplicação. E você faz esse mapeamento, essa troca de informação, para que você não precise ficar utilizando a plataforma do SQL para fazer esse gerenciamento de dados.
+E o sequelize entra como uma alternativa de linguagem para gerir essa troca de dados: seja buscando informações, excluindo, atualizando, criando, etc. (O CONCEITO DE CRUD - Create, Read, Update, Delete). O SQL já tem uma linguagem própria, mas é mais intuitivo continuar usando uma linguagem que você já usa na construção da sua aplicação (javascript) na troca de informações com o banco de dados (usando o sequelize, adaptação entre javascript e SQL)
+
+____________________________________________________________________________________
+
+SISTEMA GERENCIADOR DE BANCO DE DADOS (estaremos usando o postgres)
+
+-> Métodos de Acesso
+    -> Possibilitam a criação/manipulação de um banco de dados (inserir, deletar, criar, alterar, atualizar (...))
+-> Integridade Semântica
+    -> garantir que o preenchimento de dados seja feito da maneira correta (isto é, se for injetado um dado NUMBER num campo que na verdade é para ser do valor STRING, vai apontar como incorreto, etc)
+    -> relacionamento válido entre os dados
+        -> ex: a relaçao entre a entidade usuário e a entidade carros faça sentido
+-> Segurança
+    -> evitar violação de consistência dos dados e garantir a segurança de acesso
+    -> segurança contra falhas
+-> Concorrência
+    -> evitar conflito de acesso simultâneo a dados por transações (isto é, dois usuários que estão tentando acesso a mesma tabela, por exemplo, não causem alguma divergência, inconstância, redundância, etc)
+        -> ex: estão comprando um produto numa loja mas só existe uma unidade, o s.g.b.d. vai evitar isso, bloqueando o acesso do segundo usuário
+-> Independência
+
+
+OBJETIVO
+
+De forma geral, é fornecer um abiente que seja tanto conveninente como eficiente para recuperação e armazenamento de informações
+
+ARQUITETURA
+
+Ele terá a parte de processamento de consultas (isto é, tudo que será digerido de alteração ou novidade) e de consulta desses dados armazenados

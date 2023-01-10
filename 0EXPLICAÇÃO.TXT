@@ -1,0 +1,42 @@
+CONCEITO
+
+-> MVC (Model, View, Controller) é um padrão de arquitetura de software que separa sua aplicação em 3 camadas
+    -> VIEW: Camada de interação do usuário (interface)
+        -> javascript, css, html, template engines (ejs) no caso de ter que lidar com dados de um banco
+    -> MODEL: Camada de manipulação dos dados (é invisível ao usuário)
+    -> CONTROLLER: Camada de controle
+        -> coordena/controla o fluxo da aplicação
+        -> pede pro model informações da base de dados
+        -> joga os dados para uma view pra se renderizada
+        -> é o que exporta o .get e o .post para o routes que exporta pro server.js
+
+EXPLICAÇÃO
+
+1) Um usuário tenta acessar o site www.meuwebsite.com
+2) Quando ele tenta acessar, uma requisição HTTP chega ao CONTROLLER
+3) O CONTROLLER verifica que está chegando uma requisição HTTP e comunica o MODEL
+4) O MODEL se conecta ao banco de dados e o banco de dados retorna dados ao MODEL
+5) O MODEL retorna esses dados ao CONTROLLER (seja lá qual for os dados que estão sendo requisitados)
+    -> ex: uma lista de produtos
+6) Ao chegar no CONTROLLER de volta, os dados são enviados para o VIEW, que é responsável por renderizar os dados (interface)
+7) A VIEW vai enviar um evento get/post para o CONTROLLER
+8) E o CONTROLLER devolve a resposta HTTP para que tudo seja visualizado
+    -> os dados requisitados, organizados de forma gráfica, etc
+
+BROWSER >> WEB SERVER >> MINHA APLICAÇÃO >> CONTROLLER (PRIMEIRA "CAMADA" QUE RECEBE O REQUEST)
+    1) CASO NAO HAJA NECESSIDADE DE SE CONECTAR C/ BANCO DE DADOS
+        -> VIEW >>> CONTROLLER >>> BROWSER
+    2) CASO HAJA NECESSIDADE DE SE CONECTAR AO BANCO DE DADOS
+        -> >>> MODEL >>> CONTROLLER >>> VIEW >>> CONTROLLER >>> BROWSER
+
+REPRESENTAÇÃO GRÁFICA
+
+
+                                httprequest               data object request
+                                ----------->                ------------>
+                WEB BROWSER                   [CONTROLLER]                                  [MODEL]
+                    |           <-----------   /\    |      <------------                   /\  |
+                    |           httpresponse    |    |     data object response              |  |
+                    |                           |    \/                                      |  |
+                USUARIO                         [VIEW]                             (database |  \/  (database
+                                                                                response)  DATABASE  request)

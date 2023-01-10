@@ -1,0 +1,265 @@
+O QUE SÃO
+
+-> As Migrations trabalham na manipulação da base de dados
+    -> criando, alterando ou removendo dados/entidades/etc
+-> Ex: criação de uma nova tabela na base de dados
+
+____________________________________________________________________________________
+
+PASSOS
+
+1) criar a pasta migrations dentro da pasta database
+    -> src -> database -> *migrations*
+
+2) Ir nas configuraçoes do .sequelizerc e explicar aonde ele vai armazenar as migrations que ele criar
+    -> dentro do module.exports, atualizar os seguintes dados:
+        -> module.exports = {
+            config: path.resolve(__dirname, 'src', 'config', 'database.js'), // já estava
+            'migrations-path': path.resolve(__dirname, 'src', 'database', 'migrations') // aqui estou explicando onde quero que ele crie as migrations
+        }
+
+3) Rodar o comando: npx sequelize migration:create --name=create-user
+    -> essa parte de --name=create-x vai dizer o que essa migration vai estar fazendo
+        -> no caso, criando uma tabela de usuários
+
+4) Agora, dentro da pasta migrations vai ter sio criado um arquivo.js
+    -> vai estar com o timestamp atual e com o nome dado no "name" do comando
+        -> ex: 20230104170203-create-user.js
+        -> dessa forma, cria-se um histórico de migrations em que é respeitado o momento de criação
+        -> isto é, as novas migrations sempre ficam abaixo das antigas dentro da pasta migrations
+
+____________________________________________________________________________________
+
+SUBINDO A PRIMEIRA MIGRATION
+(Dentro do arquivo criado.js)
+
+1) Podemos ver que temos o método UP e o DOWN
+    -> up: diz o que a migration vai realizar na base de dados
+        -> ex: criaçao de uma tabela
+        -> ex: alterar um campo de integer pra string
+    -> down: diz o que precisa ser feito caso seja o caminho oposto
+        -> ex: deletar aquela mesma tabela
+        -> ex: alterar de volta de string para integer
+
+2) Tiramos os /* */ (descomentando o código)
+
+3) Dentro do método up, fazemos as alterações que quisermos
+    -> tipo acrescentar novos campos dentro da tabela
+    -> ou aumentar a quantidade de configurações de um mesmo campo
+    -> ex:
+
+    ANTES: await queryInterface.createTable('users', {id: Sequelize.INTEGER});
+
+    DEPOIS: await queryInterface.createTable('users', {
+                id: {
+                    type: Sequelize.INTEGER, // estou dizendo que datatype é um número inteiro
+                    primaryKey: true,        // é a identidade daquela linha (ou seja, que ela possui um ID único que nenhuma outra tem)
+                    autoIncrement: true      // esse campo é autoincremental (1, 2, 3, 4, 5 ...)
+                    allowNull: false,        // esse campo não pode ser nulo (é obrigatório)
+
+                },
+                name: {
+                    type: Sequelize.STRING,
+                    allowNull: false,
+                },
+                email: {
+                    type: Sequelize.STRING,
+                    allowNull: false,
+                },
+                created_at: {
+                    type: Sequelize.DATE,
+                    allowNull: false,
+                }
+                updated_at: {
+                    type: Sequelize.DATE,
+                    allowNull: false,
+                }
+                });
+
+4) Por fim, depois de termos criado no arquivo de migration todas as alterações que pretendemos, rodamos:
+    -> npx sequelize db:migrate
+    -> agora a tabela é criada dentro do banco de dados
+    -> obs: são criadas duas tabelas (levando em conta que é a primeira migration)
+        -> a tabela que eu de fato criei (users no caso)
+        -> e a tabela SequelizeMeta
+            -> basicamente ela armazena as migrations que foram rodadas na base de dados
+            -> isso é útil pois, se estivermos trabalhando em equipe por exemplo no mesmo banco de dados,
+            próxima vez que formos fazer uma migration, o banco de dados vai nao apenas atualizar o que 
+            foi criado pela pessoa que está rodando o código, mas também todas as alterações feitas pela outra
+            pessoa que também está trabalhando em cima daquela base de dados
+
+OBS: Podemos ver as diferentes operações (além do .createTable) no site do sequelize.org na parte de Migrations
+____________________________________________________________________________________
+
+MIGRATION DOWN (DE REVERTER)/ ADICIONAR ALGO EM UMA TABELA EXISTENTE
+
+1) Para reverter alguma migration, rodamos o comando:
+    -> npx sequelize db:migrate:undo
+        -> esse comando vai reverter a ultima migration feita por *você* (dentro do SequelizeMeta)
+            -> ex: se fizemos uma migration de adicionar uma
+            tabela e rodarmos o comando, a tabela será deletada
+    -> isso é útil no caso de termos cometido algum erro de configuração na criação
+    da tabela, apenas damos esse rollback
+    -> obs: não é possível fazer esse rollback caso a migration já tenha saído do ambietne de desenvolvimento
+    (isto é, se chegou para outros desenvolvedores já)
+
+2) Caso seja necessário fazer alguma alteração num momento em que a migration em questão está FORA DO AMBIENTE DE DESENVOLVIMENTO:
+    -> criamos uma nova migration
+    -> ex: qeuremos adicionar um novo campo
+        -> npx sequelize migration:create --name=add-age-field-to-users
+
+2.1) Dentro do novo arquivo de migration.js criado
+    -> Alteramos a parte de .createTable (já que não queremos criar uma nova tabela)
+    -> module.exports = {
+        up: (queryInterface, Sequelize) => {
+            return queryInterface.addColumn( // adicionando uma coluna numa tabela já existente
+                'users', // dando o nome da tabela
+                'email',  // nome da coluna que será criada
+                {
+                    type: Sequelize.INTEGER, // configuraçoes dos dados que serão inseridos nessa coluna
+                },
+            );
+        }
+
+        down: (queryInterface, Sequelize) => {
+            return queryInterface.removeColumn(
+                'users',
+                'email',
+            )
+        }
+    }
+
+____________________________________________________________________________________
+
+INSERÇÃO DE REGISTROS 
+ 
+1) src -> models -> User.js (criar esse arquivo para o models do registro de Usuários, tabela que a gente já criou e quer se conectar)
+    -> escrevemos o arquivo User.js no formato classe mesmo (iniciando com letra maiúscula)
+    -> lembrando que o models é uma representação de como nossa aplicação vai se comunicar com a nossa base de dados
+    -> criamos um model para a tabela "user" que criamos anteriormente
+    ->
+        const { Model, DataTypes } = require('sequelize'); // importando o Model do sequelize
+
+        class User extends Model {
+            static init(connection) { // criamos o metodo init (padrao do sequelize)
+                super.init({
+                    name: DataTypes.STRING,
+                    email: DataTypes.STRING
+                },{
+                    sequelize: connection;
+                })
+            }
+        }
+
+        module.exports = User;
+    -> Obs: nao iremos passar as colunas id, created_at e updated_at pq, nas nossas configurações, indicamos como timestamps: true (o que faz com que o sequelize entenda que é uma coluna preenchida automaticamente) e no caso de ID é autoincremental
+    -> a parte do sequelize: connection é a parte que linka com a conexão
+
+2) Agora, em index.js (que fica no caminho src/database), importo esse model de user:
+    ->
+        const Sequelize = require('sequelize');
+        const dbConfig = require('../config/database');
+
+        const User = require('../models/User')
+
+        const connection = new Sequelize(dbConfig);
+
+        User.init(connection);
+
+        module.exports = connection;
+
+    -> Ir também no server.js e importar a conexão com a base de dados
+        ->
+        express = require('express');
+        const routes = require('./routes');
+
+        require('./database')
+
+        const app = express();
+
+        app.use(express.json());
+        app.use(routes);
+
+        app.listen(8888)
+
+3) Agora vamos testar se está realmente funcionando
+
+    3.1) Criar uma pasta controllers com o arquivo do UserController.js
+        ->
+            const User = require('../models/User')
+            module.exports = {
+                async store(req, res) {
+                    const { name, email } = req.body;
+
+                    const user = await User.create({ name, email })
+                    return res.json(user);
+                }
+            }
+
+    3.2) Vamos em routes e criamos uma rota para cadastro de usuários
+        ->
+            const express = require('express');
+            const Usercontroller = require('./controllers/UserController')
+
+            const routes = express.Router();
+
+            routes.post('/users', UserController.store) //post pq eh formulario/cadastro
+
+            module.exports = routes;
+    
+    3.3) Agora vamos no Insomnia
+        -> que é um software de realizaçao de teste de API REST
+        -> criamos uma new folder, chamada Users
+        -> criamos uma HTTP REQUEST
+            -> post
+            -> mudar para Json (pois estaremos trabalhando nesse caso c json)
+            -> mudar o link para http://localhost:8888/users
+        -> escrevemos no formato json o que queremos adicionar na tabela
+            -> {
+                "name": "Antonio Valença",
+                "email": "antoniotvalenca@gmail.com"
+            }
+        -> Pronto agora conseguimos checar que nossa tabela foi atualizada
+    
+    3.4) Voltamos ao UserController para adicionar o User.index (que participará da resposta)
+        ->
+            module.exports = {
+                async index(req, res) {
+                    const users = await User.findAll();
+                    return res.json(users)
+                }
+
+                async store(req, res) {
+                    const { name, email } = req.body
+                    const user = await User.create({ name, email })
+
+                    return res.json(user);
+                }
+            }
+    
+    3.5) ir no routes e criar um .get desse index de user
+        -> route.get('/users', UserController.index)
+
+    3.6) Voltamos ao Insomnia
+        -> crio um método get
+        -> associo ao link http://localhost:8888/users etc e testo o get
+        -> obs: nao precisamos ir necessariamente ao insomnia agora, ja que o metodo get pode ser visto do navegador tranquilamente tbm
+            -> so o post que é necessraio o insomnia
+
+
+1) crio a migration
+    -> npx sequelize migration:create --name=create-user 
+    -> vai ser enviada pro src/database/migrations
+    -> coloco o código da migration (o up e o down)
+
+2) envio pro banco de dados
+    -> npx sequelize db:migrate
+    -> npx sequelize db:migrate:undo // para desfazer
+
+3) crio um model da tabela criada (caso tenha sido uma tabela a migration)
+    -> em src/models
+    -> coloco para exportar
+
+4) importo a model para o src/database/index.js e para o src/controllers
+    -> o index.js vai fazer a conexao c o banco de dados diretamente
+    -> o controller vai fazer a conexao geral (com o browser, com o index.js[banco de dados], com o view engine)

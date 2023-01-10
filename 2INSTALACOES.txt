@@ -1,0 +1,118 @@
+BAIXANDO GERENCIADOR DE BANCO DE DADOS
+
+1) Baixar Postgres e Postico (combo do gerenciamento de banco de dados)
+2) Baixar Insomnia
+____________________________________________________________________________________
+
+PRIMEIROS PASSOS (INSTALAÇÕES)
+
+1) Criar a pasta do projeto (PC)
+2) npm init -y (TERMINAL)
+3) npm install express pg pg-hstore sequelize dotenv (TERMINAL)
+   npm install sequelize-cli -D (TERMINAL)
+    -> express = framework p/ desenvolvimento de aplicações web/APIs
+    -> pg (postgres) e pg-hstore (geralmente nao precisa mas por precaução) = gerenciador do banco de dados
+    -> sequelize (o ORM utilizado para conexão do gerenciador de banco de dados e código)
+    -> dotenv é relacionado às credenciais do banco de dados que voce ira se conectar (visto mais para frente)
+4) npm install nodemon (TERMINAL)
+    -> importante/necessário para manutenção de códigos do express
+    -> ir no package.json e colocar em script:
+    -> "scripts": {
+        "dev": "nodemon src/server.js"
+    }
+    -> agora toda vez que mexermos no server.js dentro da pasta src so precisamos dar um "nodemon" no terminal para atualizar qnd tiver mexendo com req http
+____________________________________________________________________________________
+
+SEGUNDOS PASSOS (CONEXAO BANCO DE DADOS)
+                                                *RAIZ*
+                                                    *-> .sequelizerc
+                                                    *-> .env
+                                                    *-> src (pasta)
+
+                                                *DENTRO DA PASTA "src"*
+                                                    *-> config
+                                                        *-> database.js
+                                                    *-> database
+                                                        *-> index.js
+                                                    *-> routes.js
+                                                    *-> server.js
+
+
+
+
+1) criar um arquivo .env
+    ->  PORT=3001
+        DATABASE_HOST=localhost
+        DATABASE_PORT=5433
+        DATABASE_USERNAME=amigotech
+        DATABASE_PASSWORD=amigo
+        DATABASE=dbamigo-antonio
+        TOKEN_SECRET=qwertyui
+        TOKEN_EXPIRATION=7d
+
+    -> colocar as credenciais nesse formato (sem aspas e sem espaço)
+    -> obs: se for criar uma nova database pelo terminal, deixar comentado a parte de DATABASE_USERNAME (foi do jeito que funcionou)
+
+2) DENTRO DE SRC
+    2.1) criar uma pasta config e o arquivo database.js
+    -> vai guardar as credenciais, que vão ser importadas do arquivo .env
+    ->
+            require('dotenv').config();
+
+            module.exports = {
+                dialect: 'postgres',
+                host: process.env.DATABASE_HOST,
+                port: process.env.DATABASE_PORT,
+                username: process.env.DATABASE_USERNAME,
+                password: process.env.DATABASE_PASSWORD,
+                database: process.env.DATABASE,
+                define: {
+                timestamps: true,
+                underscored: true,
+                underscoredAll: true,
+                createdAt: 'created_at',
+                updatedAt: 'updated_at',
+                deletedAt: 'deleted_at'
+                },
+                dialectOptions: {
+                timezone: 'America/Pernambuco',
+                },
+            };
+
+    2.2) criar uma pasta database e o arquivo index.js
+    -> ele irá criar a conexão entre as credenciais guardadas no database
+    ->
+            const Sequelize = require('sequelize');
+            const dbConfig = require('../config/database');
+
+            const connection = new Sequelize(dbConfig);
+
+            module.exports = connection;
+
+3) criar um arquivo .sequelizerc (RAIZ DO PROJETO)
+    -> Quando tentamos criar uma conexão através do terminal, o sequelize vai buscar um arquivo padrão chamado .sequelizerc
+    ->  const path = require('path');
+
+        module.exports = {
+            config: path.resolve(__dirname, 'src', 'config', 'database.js'),
+        };
+    -> vai dar o caminho para as credenciais de acesso e é o arquivo principal que o sequelize busca para se conectar ao banco de dados (ou criar um)
+
+4) em suma:
+    4.1) .env -> src/config/database.js -> /src/database/index.js -> /src/server.js (no caso de exportar a conexão do banco de dados até chegar no server.js)
+    4.2) .env -> src/config/database.js -> sequelizerc (no caso de conectar diretamente com o banco de dados c/ o sequelize)
+
+____________________________________________________________________________________
+
+TERCEIROS PASSOS: CRIANDO CONEXAO BANCO DE DADOS VS. SERVIDOR
+
+1) criar o server.js
+
+        ->  require('./database');
+
+            const express = require('express');
+            const routes = require('./routes');
+            const app = express();
+            app.use(express.json());
+            app.use(routes);
+            app.listen(8888);

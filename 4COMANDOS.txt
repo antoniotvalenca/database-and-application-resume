@@ -1,0 +1,206 @@
+COMANDOS DE MIGRATION (TERMINAL)
+
+npx sequelize migration:create --name=create-user
+    -> criar nova migration
+
+npx sequelize db:migrate
+    -> rodar a última migration
+
+npx sequelize db:migrate:undo
+    -> desrodar a última migration
+
+npx sequelize db:create
+    -> criar o banco de dados baseado nas credenciais que foram descritas no dotenv
+____________________________________________________________________________________
+
+FUNÇÕES DE MIGRATION
+
+-> CRIAR TABELA
+
+     async up (queryInterface, Sequelize) {
+    await queryInterface.createTable('users', {
+      id: {
+        type: Sequelize.INTEGER,
+        primaryKey: true,
+        autoIncrement: true,
+        allowNull: false,
+      },
+      name: {
+        type: Sequelize.STRING,
+        allowNull: false,
+      },
+      age: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+      },
+      created_at: {
+        type: Sequelize.DATE,
+        allowNull: false,
+      },
+      updated_at: {
+        type: Sequelize.DATE,
+        allowNull: false,
+      }
+     });
+  },
+
+  async down (queryInterface, Sequelize) {
+    await queryInterface.dropTable('users');
+  }
+};
+
+____________________________________________________________________________________
+
+CRIANDO VALOR POR REFERENCIA (RELACIONAMENTO ENTRE ENTIDADES)
+
+PRIMEIRO: N PARA 1
+
+-> Na migration, criando uma nova tabela, colocamos como propriedade de uma coluna:
+    ->  TABELA: ENDEREÇOS
+        ...
+        user_id: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        references: { model: 'users', key: 'id' },
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE'
+      }
+    -> Estou dizendo que a COLUNA USER_ID da TABELA ENDEREÇOS irá sempre se basear no valor da COLUNA ID da TABELA USERS
+
+-> Agora, dentro do model dessa entidade que está dependente de outro valor:
+  -> ou seja, agora dentro do Model de Endereço:
+    ->
+      const { Model, DataTypes } = require('sequelize');
+
+      class Adress extends Model {
+          static init(connection) {
+              super.init({
+                  zipcode: DataTypes.STRING,
+                  street: DataTypes.STRING,
+                  number: DataTypes.INTEGER,
+              }, {
+                  sequelize: connection
+              })
+          }
+
+          static associate(models) {
+              this.belongsTo(models.User, { foreignKey: 'user_id', as: 'user'})
+          }
+      }
+
+      module.exports = Adress;
+
+      -> criamos a funçao estatica associate
+        -> a foreignKey vai ser a coluna dependente
+        -> o "as" é só o nome dessa relação (pode ser qualquer nome)
+          -> esse nome é útil levando em conta que uma tabela pode ter mais de 1 relacionamento com a mesma tabela, ai só
+          para tornar cada relacionamento único
+
+-> Por segurança (mas não é obrigatório, só em caso de realizarmos querys muito específicas) vamos no model "pai" e colocamos:
+  -> static associate(models) {
+    this.hasMany(models.Address, {foreignKey: 'user_id', as: 'addresses' });
+  }
+-> Agora vamos no /src/database/index.js
+  -> chamamos o Address.associate(connection.models)
+    ->  const Sequelize = require('sequelize');
+        const dbConfig = require('../config/database.js');
+
+        const User = require('../models/User.js')
+        const Address = require('../models/Address.js')
+
+        const connection = new Sequelize(dbConfig);
+
+        User.init(connection);
+
+        Address.init(connection);
+        Address.associate(connection.models)
+
+        module.exports = connection;
+
+SEGUNDO: N PARA N
+
+1) CRIAMOS A MIGRATION DA CRIAÇAO DAS TABELAS
+  -> npx sequelize migration:create --name=create-table-nomedatabela
+    -> exemplo: iremos criar uma tabela de TECHS, de USER, e de USER_TECHS
+    -> É como se o user_techs fosse filho do user e techs (obs a tabela users ja estava criada do passo acima, entao será aproveitada)
+
+2) NA TABELA "FILHA" (QUE IRÁ ABSORVER O VALOR POR REFERENCIA) COLOCAMOS:
+        user_id: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        references: { model: 'users', key: 'id' },
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE'
+      },
+        tech_id: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        references: { model: 'techs', key: 'id' },
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE'
+      },
+3) AGORA CRIO UM CONTROLLER E UM MODEL PARA A TABELA DE USER E TECH
+  -> nao preciso criar para o user_techs pq ela só tem colunas com valores de ID, entao o sequelize ja lida automaticamente com ela
+  -> model 1 (tech):
+    ...
+    static associate(models) {
+        this.belongsToMany(models.User, { foreignKey: 'tech_id', through: 'user_techs', as: "users" });
+    }
+  }
+  -> models.User -> pertence a muitos usuarios
+  -> foreignKey: 'tech_id' -> a chave estrangeira que guarda esse valor de tecnologia
+  -> through: 'user_techs' -> qual o nome da tabela que vai relacionar
+  -> as: users -> nome a relacao/associacao
+
+  -> model 2 (user)
+    -> repete o mesmo processo, adaptando as configuraçoes do belongstomany
+    ->
+      ...
+        static associate(models) {
+          this.belongsToMany(models.Tech, { foreignKey: 'user_id', through: 'user_techs', as: "techs" });
+          }
+        }
+4) Os passos finais:
+  4.1) criar as routes
+    -> const TechController = require('./controllers/TechController')
+    ->  routes.post('/users/:user_id/techs', TechController.store)
+        routes.get('/users/:user_id/techs', TechController.index);
+
+  4.2) mexer no index
+    -> const Tech = require('../models/Tech')
+    -> Tech.associate(connection.models)
+
+  4.3) dentro do techcontroller
+    -> const Tech = require('../models/Tech');
+    -> module.exports = {
+      async index(req, res) {
+
+      }
+
+      async store(req, res) {
+        const { user_id } = req.params;
+        const { name } = req.body;
+
+        const user = await User.findByPk(user_id);
+
+        if (!user) {
+          return res.status(400).json({ error: 'User not found' })
+        }
+
+        const [ tech ] = await Tech.findOrCreate( { // procurar tal tecnologia se nao existir criar no banco de dados
+          where: { name }                       // o nome dessa tecnologia tem que ser *name*
+        })
+
+        await user.addTech(tech);
+        return res.json(tech);
+      }
+    }
+
+
+  BELONGSTO                 ---               HASMANY                ---     BELONGSTOMANY
+  -> usamos quando                  -> usamos quando uma entidade         -> usamos quando duas entidades se pertencem
+  uma entidade pertence a,          tem várias outras entidades           em grande numero de maneira simultanea
+  unicamente, alguma outra          relacionadas a ele                    -> Ex: Um usuário tem vários projetos e um
+  entidade                          -> Ex: um fabricante tem varios       projeto tem vários usuários
+  -> Ex: um produto pertence        produtos                              -> Nesse caso, precisamos de uma terceira tabela
+  a um fabricante                                                         que armazena a relaçao entre id's de ambos
